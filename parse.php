@@ -18,7 +18,7 @@ abstract class Errors {
 
 // Arguments process
 $longopt = array("help");
-$options = getopt(NULL, $longopt);
+$options = getopt(NULL, $longopt); //test
 //var_dump($options);
 
 //Arguments check
