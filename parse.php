@@ -20,6 +20,59 @@ abstract class Errors {
     const _ERROR_LEXICAL_SYNT = 23; 
 }
 
+class patterns {
+    private const
+        comment = "\s*(#(.)*)?$/",
+        tbool = "bool@(true|false)",
+        tnil = "nil@nil",
+        tint = "int@\-?[0-9]+",
+        tstring = "string@(|(\\\\\d{3})|[^#\\\\\"\s])+",
+        var1 = "\s+(GF|TF|LF)@(\_|\?|\-|\\$|\&|\%|\\*|\!|[A-z])+(\_|\?|\-|\\$|\&|\%|\\*|\!|[A-z]|[0-9])*",
+        symb = "\s+((" . self::var1 . ")|(" . self::tbool . ")|(" . self::tnil . ")|(" . self::tstring . ")|(" . self::tint . "))",
+        label = "\s+(\_|\?|\-|\\$|\&|\%|\\*|\!|[A-z])+(\_|\?|\-|\\$|\&|\%|\\*|\!|[A-z]|[0-9])*";
+
+    private const instructions = [
+        "(?i)MOVE(?-i)" => ["var", "symb"],
+        "(?i)CREATEFRAME(?-i)" => [],
+        "(?i)PUSHFRAME(?-i)" => [],
+        "(?i)POPFRAME(?-i)" => [],
+        "(?i)DEFVAR(?-i)" => ["var"],
+        "(?i)CALL(?-i)" => ["label"],
+        "(?i)RETURN(?-i)" => [],
+    ];
+
+    public function parser($string) {
+        
+        foreach(self::instructions as $instruction => $oprts) {
+            $pattern = "";
+            $pattern = "/^" . $instruction;
+            
+            foreach($oprts as $oprt) {
+                switch($oprt){
+                    case "var":
+                        $pattern .= self::var1;
+                        break;
+                    case "symb":
+                        $pattern .= self::symb;
+                        break;
+                    case "label":
+                        $pattern .= self::label;
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            $pattern .= self::comment;
+    
+            if(preg_match($pattern, $string)) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
 // Arguments process
 $options = getopt(NULL, array("help")); //test
 //var_dump($options);
@@ -47,13 +100,22 @@ while ($c = fgets(STDIN)) {
 
     if ($c = "\n") {
         
-        if (!$headerFlag && $str == ".IPPcode21") {
-            echo "kek";
+        //Checks header
+        if (!$headerFlag && preg_match("/^.IPPcode21\s*$/", $str)) {
             $headerFlag = true;
-        } else {
-            echo "err\n";
+            $str = "";
+            continue;
+        } else if (!$headerFlag) {
             exit(Errors::ERROR_CODE_HEAD);
         }
+
+        
+        if(patterns::parser($str)){
+            echo "line succ\n";
+        } else {
+            echo "line notsucc\n", $str;
+        }
+        //Clear string
         $str = "";
     }
 }
