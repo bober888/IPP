@@ -7,7 +7,7 @@
 */
 
 //for displays errors codes with exit
-ini_set('display_errors', 'stderr');
+ini_set("display_errors", "stderr");
 
 //Help message(--help)
 const HelpText = "Script with type of filtr, will read program code implemented IPPcode21 from the standart input."
@@ -19,6 +19,13 @@ abstract class Errors {
     const ERROR_CODE_HEAD = 21;
     const ERROR_OPCODE = 22; 
     const ERROR_LEXICAL_SYNT = 23; 
+}
+
+function convertStringToXML($string) {
+    $string = str_replace(array("&"), array("&amp;"), $string);
+    $searchSymb = array("\"", "?", "„", "“", "«", "»", ">", "<", "≥", "≤", "≈", "≠", "≡", "§", "∞");
+    $replaceSymb = array("&quot;", "&euro;", "&bdquo;", "&ldquo;", "&laquo;", "&raquo;", "&gt;", "&lt;", "&ge;", "&le;", "&asymp;", "&ne;", "&equiv;", "&sect;", "&infin;");
+    return str_replace($searchSymb, $replaceSymb, $string);
 }
 
 class patterns {
@@ -107,26 +114,78 @@ class patterns {
                 $splitted = explode(" ", trim($string, "\n"));
                 $XMLout = "\t<instruction order=\"" . $order . "\" opcode=\"" . strtoupper($splitted[0]) . "\">\n" ;
                 $argCount = 0;
-
+                
+                //output XML
                 foreach($splitted as $argument) {
                     if($argCount == 0) {
                         $argCount++;
                         continue;
                     }
 
-                    if (preg_match("/^" . substr(self::var1, 3) . "$/", $argument)) {
-                        $XMLout .= "\t\t<arg" . $argCount . " type=\"var\">" . trim($argument, "\n") . "</arg" . $argCount .">\n";
+                    if (preg_match("/^" . substr(self::var1, 3) . "(#(.)*)?$/", $argument)) {
+                        
+                        if (strpos($argument, "#") != false) {
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"var\">" . convertStringToXML(substr(trim($argument, "\n"), 0, strpos($argument, "#"))) . "</arg" . $argCount .">\n";
+                        } else {
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"var\">" . convertStringToXML(trim($argument, "\n")) . "</arg" . $argCount .">\n";
+                        }
+                        
                         $argCount++;
 
-                    } elseif (preg_match("/^" . substr(self::tstring, 3) . "$/", $argument)) {
-                        $XMLout .= "\t\t<arg" . $argCount . " type=\"string\">" . substr(trim($argument, "\n"), 7) . "</arg" . $argCount .">\n";
+                    } elseif (preg_match("/^" . substr(self::tstring, 3) . "(#(.)*)?$/", $argument)) {
+                        
+                        if (strpos($argument, "#") != false) {
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"string\">" . convertStringToXML(substr(trim($argument, "\n"), 7, strpos($argument, "#") - 7)) . "</arg" . $argCount .">\n";
+                        } else {
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"string\">" . convertStringToXML(substr(trim($argument, "\n"), 7)) . "</arg" . $argCount .">\n";
+                        }
+                        
                         $argCount++;
-
+                    
+                    //comment
                     } elseif ((preg_match("/^#(.)*$/", $argument))) {
                         break;
+                    
+                    } elseif (preg_match("/^" . substr(self::tnil, 3) . "(#(.)*)?$/", $argument)) {
+                        $XMLout .= "\t\t<arg" . $argCount . " type=\"nil\">" . "nil" . "</arg" . $argCount .">\n";
+                        $argCount++;
 
-                    }   elseif (preg_match("/^" . substr(self::label, 3) . "$/", $argument)) {
-                        $XMLout .= "\t\t<arg" . $argCount . " type=\"label\">" . trim($argument, "\n") . "</arg" . $argCount .">\n";
+                    } elseif (preg_match("/^" . substr(self::type, 3) . "(#(.)*)?$/", $argument)) {
+
+                        if (strpos($argument, "#") != false) {
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"type\">" . substr(trim($argument, "\n"), 0, strpos($argument, "#")) . "</arg" . $argCount .">\n";
+                        } else {
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"type\">" . trim($argument, "\n") . "</arg" . $argCount .">\n";
+                        }
+                        
+                        $argCount++;
+                    } elseif(preg_match("/^" . substr(self::tint, 3) . "(#(.)*)?$/", $argument)) {
+                        
+                        if (strpos($argument, "#") != false) {
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"int\">" . substr(trim($argument, "\n"), 4, strpos($argument, "#") - 4) . "</arg" . $argCount .">\n";
+                        } else {
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"int\">" . substr(trim($argument, "\n"), 4) . "</arg" . $argCount .">\n";
+                        }
+                        
+                        $argCount++;
+                    } elseif (preg_match("/^" . substr(self::tbool, 3) . "(#(.)*)?$/", $argument)) {
+
+                        if (strpos($argument, "#") != false) {
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"bool\">" . substr(trim($argument, "\n"), 5, strpos($argument, "#") - 5) . "</arg" . $argCount .">\n";
+                        } else {
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"bool\">" . substr(trim($argument, "\n"), 5) . "</arg" . $argCount .">\n";
+                        }
+
+                        $argCount++;
+
+                    } elseif (preg_match("/^" . substr(self::label, 3) . "(#(.)*)?$/", $argument)) {
+                        
+                        if (strpos($argument, "#") != false) {
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"bool\">" . substr(trim($argument, "\n"), 0, strpos($argument, "#")) . "</arg" . $argCount .">\n";
+                        } else {
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"label\">" . trim($argument, "\n") . "</arg" . $argCount .">\n";
+                        }
+
                         $argCount++;
                     }
                 }
@@ -169,19 +228,19 @@ $str = "";
 $headerFlag = false;
 
 //Start output XML header
-echo "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
+echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
 $order = 1;
 //reading the input
 while ($str = fgets(STDIN)) {
 
     //Checks header
-    if (!$headerFlag && preg_match("/^.IPPcode21\s*$/", $str)) {
+    if (!$headerFlag && preg_match("/^.IPPcode21\s*(#(.)*)?$/", $str)) {
         $headerFlag = true;
         echo "<program language=\"IPPcode21\">\n";
         continue;
-    } else if (!$headerFlag && preg_match("/^\s*#(.)*$/", $str)) { //if first line is comment
+    } elseif (!$headerFlag && preg_match("/^\s*#(.)*$/", $str)) { //if first line is comment
         continue;
-    } else if (!$headerFlag) {
+    } elseif (!$headerFlag) {
         exit(Errors::ERROR_CODE_HEAD);
     }
 
