@@ -11,7 +11,8 @@ ini_set('display_errors', 'stderr');
 
 //Help message(--help)
 const HelpText = "Script with type of filtr, will read program code implemented IPPcode21 from the standart input."
-                  ."Controls lexical and syntatic rightness and writes to output XML representation of program.\n";
+                  ."Controls lexical and syntatic rightness and writes to output XML representation of program.\n"
+                  ."Usage parse.php [OPTIONS] <inputfile.IPPcode21\n";
 
 abstract class Errors {
     const INVALID_ARGUMENTS = 10;
@@ -70,7 +71,7 @@ class patterns {
         "(?i)BREAK(?-i)" => [],
     ];
 
-    public static function parser($string) {
+    public static function parser($string, $order) {
         $ErrorInstrFlag = true; //Flag for invalid instruction error
 
         foreach(self::instructions as $instruction => $oprts) {
@@ -103,6 +104,35 @@ class patterns {
             $pattern .= self::comment;
             
             if(preg_match($pattern, $string)) {
+                $splitted = explode(" ", trim($string, "\n"));
+                $XMLout = "\t<instruction order=\"" . $order . "\" opcode=\"" . strtoupper($splitted[0]) . "\">\n" ;
+                $argCount = 0;
+
+                foreach($splitted as $argument) {
+                    if($argCount == 0) {
+                        $argCount++;
+                        continue;
+                    }
+
+                    if (preg_match("/^" . substr(self::var1, 3) . "$/", $argument)) {
+                        $XMLout .= "\t\t<arg" . $argCount . " type=\"var\">" . trim($argument, "\n") . "</arg" . $argCount .">\n";
+                        $argCount++;
+
+                    } elseif (preg_match("/^" . substr(self::tstring, 3) . "$/", $argument)) {
+                        $XMLout .= "\t\t<arg" . $argCount . " type=\"string\">" . substr(trim($argument, "\n"), 7) . "</arg" . $argCount .">\n";
+                        $argCount++;
+
+                    } elseif ((preg_match("/^#(.)*$/", $argument))) {
+                        break;
+
+                    }   elseif (preg_match("/^" . substr(self::label, 3) . "$/", $argument)) {
+                        $XMLout .= "\t\t<arg" . $argCount . " type=\"label\">" . trim($argument, "\n") . "</arg" . $argCount .">\n";
+                        $argCount++;
+                    }
+                }
+                //todo
+                $XMLout .= "\t</instruction>\n";
+                echo $XMLout;
                 return 0;
             }
 
@@ -123,6 +153,7 @@ $options = getopt(NULL, array("help")); //test
 //Arguments check
 if ( (array_key_exists("help", $options) && $argc > 2) ||
     (empty($options) && $argc > 1) ) {
+        echo "parse.php --help\n";
         exit(Errors::INVALID_ARGUMENTS);
 }
 
@@ -137,42 +168,40 @@ $str = "";
 //flag for header line
 $headerFlag = false;
 
+//Start output XML header
+echo "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
+$order = 1;
 //reading the input
-while ($c = fgets(STDIN)) {
-    $str .= $c;
+while ($str = fgets(STDIN)) {
 
-    if ($c = "\n") {
-        
-        //Checks header
-        if (!$headerFlag && preg_match("/^.IPPcode21\s*$/", $str)) {
-            $headerFlag = true;
-            $str = "";
-            continue;
-        } else if (!$headerFlag && preg_match("/^\s*#(.)*$/", $str)) { //if first line is comment
-            $str = "";
-            continue;
-        } else if (!$headerFlag) {
-            exit(Errors::ERROR_CODE_HEAD);
-        }
-
-        //If line is command
-        if (preg_match("/^\s*#(.)*$/", $str)) {
-            echo "comment\n";
-            $str = "";
-            continue;    
-        }
-        
-        //Check if string correct, if not program exit
-        if(patterns::parser($str) == 0) {
-            echo "line succ\n";
-        } else {
-            print $str;
-            exit(patterns::parser($str));
-        }
-        //Clear string
-        $str = "";
+    //Checks header
+    if (!$headerFlag && preg_match("/^.IPPcode21\s*$/", $str)) {
+        $headerFlag = true;
+        echo "<program language=\"IPPcode21\">\n";
+        continue;
+    } else if (!$headerFlag && preg_match("/^\s*#(.)*$/", $str)) { //if first line is comment
+        continue;
+    } else if (!$headerFlag) {
+        exit(Errors::ERROR_CODE_HEAD);
     }
+
+    //If line is command
+    if (preg_match("/^\s*#(.)*$/", $str)) {
+        //echo "comment\n";
+        $str = "";
+        continue;    
+    }
+        
+    //Check if string correct, if not program exit
+    if(patterns::parser($str, $order) == 0) {
+       $order++;
+    } else {
+        print $str;
+        exit(patterns::parser($str));
+    }    
 }
+echo "</program>";
+exit(0);
 /*
 end of file parse.php
 */
