@@ -14,6 +14,7 @@ const HelpText = "Script with type of filtr, will read program code implemented 
                   ."Controls lexical and syntatic rightness and writes to output XML representation of program.\n"
                   ."Usage parse.php [OPTIONS] <inputfile.IPPcode21\n";
 
+//Codes for error exits
 abstract class Errors {
     const INVALID_ARGUMENTS = 10;
     const ERROR_CODE_HEAD = 21;
@@ -21,25 +22,28 @@ abstract class Errors {
     const ERROR_LEXICAL_SYNT = 23; 
 }
 
+//Function convert string to XML format(changes some symbols to XML format)
 function convertStringToXML($string) {
     $string = str_replace(array("&"), array("&amp;"), $string);
-    $searchSymb = array("\"", "?", "„", "“", "«", "»", ">", "<", "≥", "≤", "≈", "≠", "≡", "§", "∞");
-    $replaceSymb = array("&quot;", "&euro;", "&bdquo;", "&ldquo;", "&laquo;", "&raquo;", "&gt;", "&lt;", "&ge;", "&le;", "&asymp;", "&ne;", "&equiv;", "&sect;", "&infin;");
+    $searchSymb = array("\"", ">", "<", "'");
+    $replaceSymb = array("&quot;", "&gt;", "&lt;", "&apos;");
     return str_replace($searchSymb, $replaceSymb, $string);
 }
 
+//class with patterns and method to check input line / generate output
 class patterns {
     private const
         comment = "\s*(#(.)*)?$/",
         tbool = "\s+bool@(true|false)",
         tnil = "\s+nil@nil",
-        tint = "\s+int@\-?[0-9]+",
+        tint = "\s+int@(\-|\+)?[0-9]+",
         tstring = "\s+string@(|(\\\\\d{3})|[^#\\\\\"\s])+",
         var1 = "\s+(GF|TF|LF)@(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z])+(\_|\?|\-|\\$|\&|\%|\*|\!|[A-z]|[0-9])*",
         symb = "((" . self::var1 . ")|(" . self::tbool . ")|(" . self::tnil . ")|(" . self::tstring . ")|(" . self::tint . "))",
         label = "\s+(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z])+(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z]|[0-9])*",
         type = "\s+(int|string|bool)";
 
+    //array of instructions and theirs operands
     private const instructions = [
         "(?i)MOVE(?-i)" => ["var", "symb"],
         "(?i)CREATEFRAME(?-i)" => [],
@@ -78,18 +82,22 @@ class patterns {
         "(?i)BREAK(?-i)" => [],
     ];
 
+    //method to check line of input IPPcode21. Retuns 0 if string is successful
     public static function parser($string, $order) {
         $ErrorInstrFlag = true; //Flag for invalid instruction error
 
+        //Loop for generating all impossible patterns
         foreach(self::instructions as $instruction => $oprts) {
             $pattern = "";
             $pattern = "/^\s*" . $instruction;
-            $patternInstr = $pattern . "/";
+            $patternInstr = $pattern . "(\s+|$)/";
             
+            //Checks if opcode is exists, if not then it returns an error 22 later
             if(preg_match($patternInstr, $string)){
                 $ErrorInstrFlag = false;
             }
 
+            //Generating pattern in format OPCODE <var> <symb>.... etc
             foreach($oprts as $oprt) {
                 switch($oprt){
                     case "var":
@@ -108,22 +116,27 @@ class patterns {
                 }
             }
 
+            //Adding a comment to pattern
             $pattern .= self::comment;
             
+            //If string is successful
             if(preg_match($pattern, $string)) {
+                //Splits input string on parts between whitespaces
                 $splitted = explode(" ", trim($string, "\n"));
+                //Variable for xml output
                 $XMLout = "\t<instruction order=\"" . $order . "\" opcode=\"" . strtoupper($splitted[0]) . "\">\n" ;
                 $argCount = 0;
                 
-                //output XML
+                //Generating XMLout
                 foreach($splitted as $argument) {
                     if($argCount == 0) {
                         $argCount++;
                         continue;
                     }
 
+                    //Generating for type "var"
                     if (preg_match("/^" . substr(self::var1, 3) . "(#(.)*)?$/", $argument)) {
-                        
+                        //If string is with comment on the end without spaces
                         if (strpos($argument, "#") != false) {
                             $XMLout .= "\t\t<arg" . $argCount . " type=\"var\">" . convertStringToXML(substr(trim($argument, "\n"), 0, strpos($argument, "#"))) . "</arg" . $argCount .">\n";
                         } else {
@@ -131,7 +144,8 @@ class patterns {
                         }
                         
                         $argCount++;
-
+                    
+                    //Generating for type "string"
                     } elseif (preg_match("/^" . substr(self::tstring, 3) . "(#(.)*)?$/", $argument)) {
                         
                         if (strpos($argument, "#") != false) {
@@ -142,14 +156,16 @@ class patterns {
                         
                         $argCount++;
                     
-                    //comment
+                    //If string is a comment
                     } elseif ((preg_match("/^#(.)*$/", $argument))) {
                         break;
                     
-                    } elseif (preg_match("/^" . substr(self::tnil, 3) . "(#(.)*)?$/", $argument)) {
+                    //Generating for type "nil"
+                    } elseif (preg_match("/^" . substr(self::tnil, 3) . "(#(.)*)?$/", $argument)) { //TODO
                         $XMLout .= "\t\t<arg" . $argCount . " type=\"nil\">" . "nil" . "</arg" . $argCount .">\n";
                         $argCount++;
 
+                    //Generating for type "type"
                     } elseif (preg_match("/^" . substr(self::type, 3) . "(#(.)*)?$/", $argument)) {
 
                         if (strpos($argument, "#") != false) {
@@ -159,6 +175,8 @@ class patterns {
                         }
                         
                         $argCount++;
+
+                    //Generating for type "int"
                     } elseif(preg_match("/^" . substr(self::tint, 3) . "(#(.)*)?$/", $argument)) {
                         
                         if (strpos($argument, "#") != false) {
@@ -168,6 +186,8 @@ class patterns {
                         }
                         
                         $argCount++;
+
+                    //Generating for type "bool"
                     } elseif (preg_match("/^" . substr(self::tbool, 3) . "(#(.)*)?$/", $argument)) {
 
                         if (strpos($argument, "#") != false) {
@@ -177,11 +197,12 @@ class patterns {
                         }
 
                         $argCount++;
-
+                    
+                    //Generating for type "label"
                     } elseif (preg_match("/^" . substr(self::label, 3) . "(#(.)*)?$/", $argument)) {
                         
                         if (strpos($argument, "#") != false) {
-                            $XMLout .= "\t\t<arg" . $argCount . " type=\"bool\">" . substr(trim($argument, "\n"), 0, strpos($argument, "#")) . "</arg" . $argCount .">\n";
+                            $XMLout .= "\t\t<arg" . $argCount . " type=\"label\">" . substr(trim($argument, "\n"), 0, strpos($argument, "#")) . "</arg" . $argCount .">\n";
                         } else {
                             $XMLout .= "\t\t<arg" . $argCount . " type=\"label\">" . trim($argument, "\n") . "</arg" . $argCount .">\n";
                         }
@@ -189,7 +210,7 @@ class patterns {
                         $argCount++;
                     }
                 }
-                //todo
+                
                 $XMLout .= "\t</instruction>\n";
                 echo $XMLout;
                 return 0;
@@ -207,7 +228,6 @@ class patterns {
 
 // Arguments process
 $options = getopt(NULL, array("help")); //test
-//var_dump($options);
 
 //Arguments check
 if ( (array_key_exists("help", $options) && $argc > 2) ||
@@ -216,7 +236,7 @@ if ( (array_key_exists("help", $options) && $argc > 2) ||
         exit(Errors::INVALID_ARGUMENTS);
 }
 
-
+//Help message out
 if ( (array_key_exists("help", $options)) ) {
     echo HelpText;
     exit(0);
@@ -229,12 +249,15 @@ $headerFlag = false;
 
 //Start output XML header
 echo "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+
+//variable for count instructions
 $order = 1;
+
 //reading the input
 while ($str = fgets(STDIN)) {
 
     //Checks header
-    if (!$headerFlag && preg_match("/^.IPPcode21\s*(#(.)*)?$/i", $str)) {
+    if (!$headerFlag && preg_match("/^\s*.IPPcode21\s*(#(.)*)?$/i", $str)) {
         $headerFlag = true;
         echo "<program language=\"IPPcode21\">\n";
         continue;
