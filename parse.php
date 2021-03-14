@@ -35,9 +35,9 @@ class patterns {
         tnil = "\s+nil@nil",
         tint = "\s+int@\-?[0-9]+",
         tstring = "\s+string@(|(\\\\\d{3})|[^#\\\\\"\s])+",
-        var1 = "\s+(GF|TF|LF)@(\_|\?|\-|\\$|\&|\%|\\*|\!|[A-z])+(\_|\?|\-|\\$|\&|\%|\\*|\!|[A-z]|[0-9])*",
+        var1 = "\s+(GF|TF|LF)@(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z])+(\_|\?|\-|\\$|\&|\%|\*|\!|[A-z]|[0-9])*",
         symb = "((" . self::var1 . ")|(" . self::tbool . ")|(" . self::tnil . ")|(" . self::tstring . ")|(" . self::tint . "))",
-        label = "\s+(\_|\?|\-|\\$|\&|\%|\\*|\!|[A-z])+(\_|\?|\-|\\$|\&|\%|\\*|\!|[A-z]|[0-9])*",
+        label = "\s+(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z])+(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z]|[0-9])*",
         type = "\s+(int|string|bool)";
 
     private const instructions = [
@@ -59,7 +59,7 @@ class patterns {
         "(?i)GT(?-i)" => ["var", "symb", "symb"],
         "(?i)AND(?-i)" => ["var", "symb", "symb"],
         "(?i)OR(?-i)" => ["var", "symb", "symb"],
-        "(?i)NOT(?-i)" => ["var", "symb", "symb"],
+        "(?i)NOT(?-i)" => ["var", "symb"],
         "(?i)INT2CHAR(?-i)" => ["var", "symb"],
         "(?i)STRI2INT(?-i)" => ["var", "symb", "symb"],
         "(?i)READ(?-i)" => ["var", "type"],
@@ -83,7 +83,7 @@ class patterns {
 
         foreach(self::instructions as $instruction => $oprts) {
             $pattern = "";
-            $pattern = "/^" . $instruction;
+            $pattern = "/^\s*" . $instruction;
             $patternInstr = $pattern . "/";
             
             if(preg_match($patternInstr, $string)){
@@ -234,13 +234,16 @@ $order = 1;
 while ($str = fgets(STDIN)) {
 
     //Checks header
-    if (!$headerFlag && preg_match("/^.IPPcode21\s*(#(.)*)?$/", $str)) {
+    if (!$headerFlag && preg_match("/^.IPPcode21\s*(#(.)*)?$/i", $str)) {
         $headerFlag = true;
         echo "<program language=\"IPPcode21\">\n";
         continue;
     } elseif (!$headerFlag && preg_match("/^\s*#(.)*$/", $str)) { //if first line is comment
         continue;
-    } elseif (!$headerFlag) {
+    } elseif (preg_match("/^\s*$/", $str)) { //if line is made of whitespaces
+        continue;
+    }
+    elseif (!$headerFlag) {
         exit(Errors::ERROR_CODE_HEAD);
     }
 
@@ -255,12 +258,15 @@ while ($str = fgets(STDIN)) {
     if(patterns::parser($str, $order) == 0) {
        $order++;
     } else {
-        print $str;
-        exit(patterns::parser($str));
+        exit(patterns::parser($str, $order));
     }    
 }
 echo "</program>";
-exit(0);
+if (!$headerFlag) {
+    exit(Errors::ERROR_CODE_HEAD);
+} else {
+    exit(0);
+}
 /*
 end of file parse.php
 */
