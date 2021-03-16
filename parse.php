@@ -22,7 +22,7 @@ abstract class Errors {
     const ERROR_LEXICAL_SYNT = 23; 
 }
 
-//Function convert string to XML format(changes some symbols to XML format)
+//Function convert $string to XML format(changes some symbols to XML format)
 function convertStringToXML($string) {
     $string = str_replace(array("&"), array("&amp;"), $string);
     $searchSymb = array("\"", ">", "<", "'");
@@ -82,7 +82,8 @@ class patterns {
         "(?i)BREAK(?-i)" => [],
     ];
 
-    //method to check line of input IPPcode21. Retuns 0 if string is successful
+    //method to check $string of input IPPcode21. Retuns 0 if string is successful.
+    //Returns errosCode if string is not valid. Agrument $order is need for generating XML output 
     public static function parser($string, $order) {
         $ErrorInstrFlag = true; //Flag for invalid instruction error
 
@@ -227,7 +228,7 @@ class patterns {
 }
 
 // Arguments process
-$options = getopt(NULL, array("help")); //test
+$options = getopt(NULL, array("help")); 
 
 //Arguments check
 if ( (array_key_exists("help", $options) && $argc > 2) ||
