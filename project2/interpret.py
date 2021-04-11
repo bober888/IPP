@@ -22,6 +22,99 @@ class Errors:
     def notPossibleOpenOutputFile():
         return 12
 
+#parse instructions
+def parse(instruction):
+    #constants
+    var = r"^(GF|TF|LF)@(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z])+(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z]|[0-9])*$" #ok
+    tbool = r"^(true|false)$" #ok
+    tnil = r"^nil$" #ok
+    tint = r"^(\-|\+)?[0-9]+$" #ok
+    tstring = r"^([^#\s\\]|(\\\d{3}))+$" #ok
+    symb = "((" + var + ")|(" + tbool + ")|(" + tnil + ")|(" + tint + ")|(" + tstring + "))"  #ok
+    label = r"^(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z])+(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z]|[0-9])*$" #ok
+    ttype = r"^(int|string|bool)$"  #??
+    symbList = ["var", "bool", "nil", "int", "string"]
+    
+    instr = {
+        "MOVE": ["var", "symb"],
+        "CREATEFRAME": [],
+        "PUSHFRAME": [],
+        "POPFRAME": [],
+        "DEFVAR": ["var"],
+        "CALL": ["label"],
+        "RETURN": [],
+        "PUSHS": ["symb"],
+        "POPS": ["var"],
+        "ADD": ["var", "symb", "symb"],
+        "SUB": ["var", "symb", "symb"],
+        "MUL": ["var", "symb", "symb"],
+        "IDIV": ["var", "symb", "symb"],
+        "LT": ["var", "symb", "symb"],
+        "EQ": ["var", "symb", "symb"],
+        "GT": ["var", "symb", "symb"],
+        "AND": ["var", "symb", "symb"],
+        "OR": ["var", "symb", "symb"],
+        "NOT": ["var", "symb"],
+        "INT2CHAR": ["var", "symb"],
+        "STRI2INT": ["var", "symb", "symb"],
+        "READ": ["var", "type"],
+        "WRITE": ["symb"],
+        "CONCAT": ["var", "symb", "symb"],
+        "STRLEN": ["var", "symb"],
+        "GETCHAR": ["var", "symb", "symb"],
+        "SETCHAR": ["var", "symb", "symb"],
+        "TYPE": ["var", "symb"],
+        "LABEL": ["label"],
+        "JUMP": ["label"],
+        "JUMPIFEQ": ["label", "symb", "symb"],
+        "JUMPIFNEQ": ["label", "symb", "symb"],
+        "EXIT": ["symb"],
+        "DPRINT": ["symb"],
+        "BREAK": [],
+    }
+
+    #If instruction is exist
+    try:
+        operands = instr[instruction[0].upper()]
+    except:
+        sys.exit(Errors.unexpectedXML())
+
+    operandNumber = 1
+    for operand in operands:
+        if operand == "var":
+
+            if instruction[operandNumber][1] != "var" or not(re.match(var, instruction[operandNumber][2])):
+                sys.exit(Errors.unexpectedXML())
+        
+        elif operand == "symb":
+            if instruction[operandNumber][1] not in symbList:
+                sys.exit(Errors.unexpectedXML())
+            if (instruction[operandNumber][2] != None) and instruction[operandNumber][1] == "string":
+                if not(re.match(symb, instruction[operandNumber][2])):
+                    sys.exit(Errors.unexpectedXML())
+
+        elif operand == "label":
+            if instruction[operandNumber][1] != "label" or not(re.match(label, instruction[operandNumber][2])):
+                sys.exit(Errors.unexpectedXML())
+        
+        elif operand == "type":
+            if instruction[operandNumber][1] != "type" or not(re.match(ttype, instruction[operandNumber][2])):
+                sys.exit(Errors.unexpectedXML())
+
+        operandNumber += 1
+    
+    #if operands more the need
+    errorFlag = False
+    try:
+        instruction[operandNumber] = 1
+        errorFlag = True
+    except:
+        pass
+
+    if errorFlag:
+        sys.exit(Errors.unexpectedXML())
+    
+
 #Function for argument parsing
 def argumentParse():
     arguments = sys.argv[1:] 
@@ -70,9 +163,11 @@ def checkChilds(root):
     
     InstrList = []
     oneInstList = []
+    numberTypeList = []
     for child in root.iterfind(".//"):
         #generating list with instructions
         if child.tag == "instruction":
+            numberTypeList = []
             if child.items()[0][0] == "order" and child.items()[1][0] == "opcode":
                 if oneInstList:
                     InstrList.append(oneInstList)
@@ -84,8 +179,11 @@ def checkChilds(root):
             else:
                 sys.exit(Errors.unexpectedXML())
             
-        if child.items()[0][0] == "type" and re.match(r"^arg([0-9])+", child.tag):
+        if child.items()[0][0] == "type" and re.match(r"^arg([123])", child.tag):
             #checks if XML syntax is correct
+            if child.tag[3:] in numberTypeList:
+                sys.exit(Errors.unexpectedXML())
+            numberTypeList.append(child.tag[3:])
             oneInstList.append((child.tag[3:], child.items()[0][1], child.text))
         else:
             sys.exit(Errors.unexpectedXML())
@@ -93,6 +191,7 @@ def checkChilds(root):
     InstrList.append(oneInstList)
     numberList = []
     for x in InstrList:
+    #adding instructions to one list
         #order must be >= 0
         if int(x[0]) < 0:
             sys.exit(Errors.unexpectedXML())
@@ -102,7 +201,6 @@ def checkChilds(root):
             numberList.append(x[0])
         else:
             sys.exit(Errors.unexpectedXML())
-
         #sorting arguments in list
         
         x[2:] = sorted(x[2:], key=lambda y: int(y[0]))
@@ -132,12 +230,15 @@ def XMLParse(file):
      
     
     checkHeader(root.attrib)
-    InstrList = checkChilds(root)
+    return checkChilds(root)
 
 #main function
 def main():
     sourceFile, inputFile = argumentParse()
-    XMLParse(sourceFile)
+    instrList = XMLParse(sourceFile)
+    for instruction in instrList:
+        parse(instruction[1:])
+
     print("Program success")
     sys.exit(0)
 
