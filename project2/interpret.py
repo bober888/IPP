@@ -21,7 +21,225 @@ class Errors:
         return 11
     def notPossibleOpenOutputFile():
         return 12
+    def semError():
+        return 52
+    def invalidOperands():
+        return 53
+    def nonExistingVariable():
+        return 54
+    def nonExistingFrame():
+        return 55
+    def invalidValue():
+        return 56
+    def badValueOperand():
+        return 57
+    def stringError():
+        return 58
 
+#class for labels
+class label:
+    # methods
+    def __init__(self, name, idx):
+        self.name = name
+        self.idx = idx  #index in instruction list    
+    
+    def isExists(self, name):
+        if self.name == name:
+            return True
+        else:
+            return False
+
+    #Function which ckecks if object in list is exists
+    def labelExist(labelList, name):
+        for el in labelList:
+            if el.isExists(name):
+                return True
+        return False
+
+#class for variables
+class variable:
+    #methods
+    varType = None
+    value = None
+
+    #constructor for variables, name = variable name 
+    def __init__(self, name):
+        self.name = name
+
+    def isExist(self, name):
+        if self.name == name:
+            return True
+        else:
+            return False
+    
+    def varExist(varList, name):
+        for el in varList:
+            if el.isExist(name):
+                return True
+        return False
+    
+    def move(self, other):
+        self.value = other.value
+        self.varType = other.varType
+    
+    def moveValue(self, type1, value):
+        self.value = value
+        self.varType = type1
+
+#class for program interpretation
+class program:
+    #attributes
+    #list for labels
+    labelList = []
+    #lists for variable
+    #List for global variables   
+    gloablFrame = []
+    #list for LF
+    localFrame = []
+    localFrameFlag = False #True if local frame is available
+    #list for TF
+    temporaryFrame = []
+    temporaryFrameFlag = False  #True if temporary frame is available
+    #stack frames
+    stackFrame = []
+    #instruction order 
+    actualIdx = 0
+    
+    #methods
+    #constructor, adds labels to labelList
+    def __init__(self, instrList):
+        idx = 0 #index for labels
+        
+        for instruction in instrList:
+            instruction = instruction[1:]
+            #adding label to the List
+            if instruction[0].upper() == "LABEL":
+                labelName = instruction[1][2]
+                if label.labelExist(self.labelList, labelName):
+                    sys.exit(Errors.semError())
+                self.labelList.append(label(labelName, idx))  
+
+            idx += 1
+    
+    #Function read instructions and calls theirs functions
+    def readInstructions(self, instrList):
+        countInstr = len(instrList)
+        while True:
+            if self.actualIdx == countInstr:
+                return
+            instrName = instrList[self.actualIdx][1]
+            operands = instrList[self.actualIdx][2:]
+            
+            methodToCall = getattr(program, instrName.upper())
+            methodToCall(self, operands)
+    
+    #returns object if it exist
+    def varObj(self, varName):
+        frame = varName[:2]
+        name = varName[3:]
+        if frame == "GF":
+            for obj in self.gloablFrame:
+                if obj.isExist(name):
+                    return obj
+        elif frame == "LF":
+            for obj in self.localFrame:
+                if obj.isExist(name):
+                    return obj
+        elif frame == "TF":
+            for obj in self.temporaryFrame:
+                if obj.isExist(name):
+                    return obj
+        return None
+
+    #return True is variable was defined
+    def isDefined(self, varName):
+        frame = varName[:2]
+        name = varName[3:]
+        if frame == "GF":
+            if variable.varExist(self.gloablFrame, name):
+                return True
+        elif frame == "LF":
+            if variable.varExist(self.localFrame, name):
+                return True
+        elif frame == "TF":
+            if variable.varExist(self.temporaryFrame, name):  
+                return True
+
+        return False      
+
+    def DEFVAR(self, operand):
+        self.actualIdx += 1
+        frame = operand[0][2][:2]
+        var = operand[0][2]
+        varName = var[3:]
+        if self.isDefined(var):    #If variable was defined
+                sys.exit(Errors.semError())
+        
+        if frame == "GF":
+            self.gloablFrame.append(variable(varName))
+        elif frame == "LF":
+            if self.localFrameFlag:
+                self.localFrame.append(variable(varName))
+            else:
+                sys.exit(Errors.nonExistingFrame())
+        elif frame == "TF":
+            if self.temporaryFrameFlag:
+                self.temporaryFrame.append(variable(varName))
+            else:
+                sys.exit(Errors.nonExistingFrame())
+
+    def MOVE(self, operand):
+        self.actualIdx += 1
+        destFrame = operand[0][2][:2]
+        varDest = self.varObj(operand[0][2])
+        srcType = operand[1][1] 
+
+        if varDest != None:
+            if srcType == "var":
+                varSrc = self.varObj(operand[1][2])
+                srcFrame = operand[1][2][3:]
+                
+                #checks if srcVar is exist
+                if (srcFrame == "LF" and not(self.localFrameFlag)) or (srcFrame == "TF" and not(self.temporaryFrameFlag)):
+                    sys.exit(Errors.nonExistingFrame())
+                elif varSrc == None:
+                    sys.exit(Errors.nonExistingVariable())
+
+                varDest.move(varSrc)
+            else:
+                varDest.moveValue(srcType, operand[1][2])
+
+        elif (destFrame == "LF" and not(self.localFrameFlag)) or (destFrame == "TF" and not(self.temporaryFrameFlag)):
+            sys.exit(Errors.nonExistingFrame())
+        else:
+            sys.exit(Errors.nonExistingVariable())
+
+    def CREATEFRAME(self, operand):
+        self.actualIdx += 1
+        self.temporaryFrame = []    #clear temporary frame
+        self.temporaryFrameFlag = True  #flag must be true
+    
+    def PUSHFRAME(self, operand):
+        self.actualIdx += 1
+        if not(self.temporaryFrameFlag):
+            sys.exit(Errors.nonExistingFrame())
+        self.stackFrame.append(self.temporaryFrame.copy())
+        self.localFrame = self.temporaryFrame.copy()
+        self.temporaryFrameFlag = False
+        self.temporaryFrame = []
+        self.localFrameFlag = True
+
+    def POPFRAME(self, operand):
+        self.actualIdx += 1
+        self.temporaryFrame
+
+
+#interpret
+def interpret(instrList):
+    programIPP21 = program(instrList)
+    programIPP21.readInstructions(instrList)
+    return
+    
 #parse instructions
 def parse(instruction):
     #constants
@@ -78,7 +296,7 @@ def parse(instruction):
         operands = instr[instruction[0].upper()]
     except:
         sys.exit(Errors.unexpectedXML())
-
+    
     operandNumber = 1
     for operand in operands:
         if operand == "var":
@@ -193,7 +411,7 @@ def checkChilds(root):
     for x in InstrList:
     #adding instructions to one list
         #order must be >= 0
-        if int(x[0]) < 0:
+        if not(x[0].isdigit()) or int(x[0]) < 0:
             sys.exit(Errors.unexpectedXML())
 
         #checks if numbers are not duplicates
@@ -236,9 +454,12 @@ def XMLParse(file):
 def main():
     sourceFile, inputFile = argumentParse()
     instrList = XMLParse(sourceFile)
+    
     for instruction in instrList:
         parse(instruction[1:])
 
+    print("Interpret starts..")
+    interpret(instrList)
     print("Program success")
     sys.exit(0)
 
