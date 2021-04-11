@@ -43,7 +43,7 @@ class label:
         self.name = name
         self.idx = idx  #index in instruction list    
     
-    def isExists(self, name):
+    def isExist(self, name):
         if self.name == name:
             return True
         else:
@@ -52,9 +52,16 @@ class label:
     #Function which ckecks if object in list is exists
     def labelExist(labelList, name):
         for el in labelList:
-            if el.isExists(name):
+            if el.isExist(name):
                 return True
         return False
+
+    def labelIdx(labelList, name):
+        for el in labelList:
+            if el.isExist(name):
+                return el.idx
+            else:
+                return -1
 
 #class for variables
 class variable:
@@ -102,6 +109,10 @@ class program:
     temporaryFrameFlag = False  #True if temporary frame is available
     #stack frames
     stackFrame = []
+    #stack for values in for (type, value)
+    stackValue = []
+    #stackCall
+    stackCall = []
     #instruction order 
     actualIdx = 0
     
@@ -126,12 +137,24 @@ class program:
         countInstr = len(instrList)
         while True:
             if self.actualIdx == countInstr:
-                return
+                break #CHANGE TO RETURN
             instrName = instrList[self.actualIdx][1]
             operands = instrList[self.actualIdx][2:]
             
             methodToCall = getattr(program, instrName.upper())
             methodToCall(self, operands)
+        #debuf DELETE BEFORE DEADLINE
+        print("LF:")
+        for el in self.localFrame:
+            print(el.name, el.value, el.varType)
+        print("GF:")
+        for el in self.gloablFrame:
+            print(el.name, el.value, el.varType)
+        print("TF:")
+        for el in self.temporaryFrame:
+            print(el.name, el.value, el.varType)
+
+
     
     #returns object if it exist
     def varObj(self, varName):
@@ -224,16 +247,61 @@ class program:
         if not(self.temporaryFrameFlag):
             sys.exit(Errors.nonExistingFrame())
         self.stackFrame.append(self.temporaryFrame.copy())
-        self.localFrame = self.temporaryFrame.copy()
+        self.localFrame = self.stackFrame[-1]
         self.temporaryFrameFlag = False
         self.temporaryFrame = []
         self.localFrameFlag = True
 
     def POPFRAME(self, operand):
         self.actualIdx += 1
-        self.temporaryFrame
+        if self.stackFrame:
+            self.temporaryFrame = (self.stackFrame.pop()).copy()
+            self.temporaryFrameFlag = True
 
+            if self.stackFrame:
+                self.localFrame = self.stackFrame[-1]
+            else:
+                self.localFrame = []
+                self.localFrameFlag = False
+        else:
+            sys.exit(Errors.nonExistingFrame())
+    
+    def CALL(self, operand):
+        self.stackCall.append(self.actualIdx + 1)
+        nextIdx = label.labelExist(self.labelList, operand[0][2])
+        if  nextIdx != -1:
+            self.actualIdx = nextIdx
 
+    def RETURN(self, operand):
+        if self.stackCall:
+            self.actualIdx = self.stackCall.pop()
+        else:
+            sys.exit(Errors.invalidValue())
+
+    def PUSHS(self, operand):
+        self.actualIdx += 1
+        obj = self.varObj(operand[0][2])
+
+        if (obj == None) and (operand[0][1] != "var"): #int|bool|string|nil
+            self.stackValue.append((operand[0][1], operand[0][2]))
+        elif obj != None:
+            self.stackValue.append((obj.varType, obj.value))
+        else:
+            sys.exit(Errors.nonExistingVariable())
+
+    def POPS(self, operand):
+        self.actualIdx += 1
+        obj = self.varObj(operand[0][2])
+        if self.stackValue:
+            if obj != None:
+                move = self.stackValue.pop()
+                obj.moveValue(move[0], move[1])
+            else:
+                sys.exit(Errors.nonExistingVariable())
+        else:
+            sys.exit(Errors.invalidValue())
+    
+    #def ADD(self, operand):
 #interpret
 def interpret(instrList):
     programIPP21 = program(instrList)
