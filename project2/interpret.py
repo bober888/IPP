@@ -1,6 +1,6 @@
 """
 IPP project part 2 VUT FIT 2021. Interpret.py
-Author: Yehro Pohrebniak
+Author: Yehor Pohrebniak
 Login: xpohre00
 Date: 06.04.2021
 """
@@ -148,8 +148,10 @@ class program:
 
    #sets input file if it exist 
     def setInputFile(self, filename):
-        self.inputFile = filename
-
+        try:
+            self.inputFile = open(filename)
+        except:
+            sys.exit(Errors.notPossibleOpenInputFile())
     #Function read instructions and calls theirs functions
     def readInstructions(self, instrList):
         countInstr = len(instrList)
@@ -162,15 +164,6 @@ class program:
             methodToCall = getattr(program, instrName.upper())
             methodToCall(self, operands)
         #debuf DELETE BEFORE DEADLINE
-        print("LF:")
-        for el in self.localFrame:
-            print(el.name, el.value, el.varType)
-        print("GF:")
-        for el in self.gloablFrame:
-            print(el.name, el.value, el.varType)
-        print("TF:")
-        for el in self.temporaryFrame:
-            print(el.name, el.value, el.varType)
 
     def typeWithValue(self, operand): #returns (type, value) of operand
         if operand[1] == "var":
@@ -565,7 +558,7 @@ class program:
         if destObj != None:
             if self.inputFile != None:
                 try:
-                    inputStr = fileinput.input(files=inputFile)
+                    inputStr = self.inputFile.readline()
                 except:
                     sys.exit(Errors.notPossibleOpenInputFile())
             else:
@@ -597,12 +590,14 @@ class program:
         else:
             sys.exit(Errors.nonExistingVariable())
     
-    def WRITE(self, operand): #TODO
+    def WRITE(self, operand):
         self.actualIdx += 1
         destObj = self.typeWithValue(operand[0])
         if destObj[0] == "string":
+            if destObj[1] == None:
+                print("")
             outPut = destObj[1]
-            #destObj[1] = re.sub(r"\\\d{3}", lambda x : chr(int(x[2:])), destObj[1])
+            outPut = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), outPut)
             print(outPut)
         elif destObj[0] == "bool":
             if destObj[1]:
@@ -729,6 +724,81 @@ class program:
         self.actualIdx = idx
     
     def JUMPIFEQ(self, operand):
+        firstOper = self.typeWithValue(operand[1])
+        secondOper = self.typeWithValue(operand[2])
+
+        if secondOper[0] == firstOper[0]:
+            if secondOper[1] == firstOper[1]:
+                idx = label.labelIdx(self.labelList, operand[0][2])
+                if idx == -1:
+                    sys.exit(Errors.semError())
+                self.actualIdx = idx
+        elif secondOper[0] == "nil" or firstOper[0] == "nil":
+            pass
+        else:
+            sys.exit(Errors.invalidOperands())
+
+    def JUMPIFNEQ(self, operand):
+        firstOper = self.typeWithValue(operand[1])
+        secondOper = self.typeWithValue(operand[2])
+        idx = label.labelIdx(self.labelList, operand[0][2])
+        if idx == -1:
+            sys.exit(Errors.semError())
+
+        if secondOper[0] == firstOper[0]:
+            if secondOper[1] != firstOper[1]:
+                self.actualIdx = idx
+        elif secondOper[0] == "nil" or firstOper[0] == "nil":
+            self.actualIdx = idx
+        else:
+            sys.exit(Errors.invalidOperands())
+
+    def EXIT(self, operand):
+        self.actualIdx += 1
+        firstOper = self.typeWithValue(operand[0])
+        if firstOper[0] == "int":
+            if firstOper[1] >= 0 and firstOper[1] <=49:
+                sys.exit(firstOper[1])
+            else:
+                sys.exit(Errors.badValueOperand())
+        else:
+            sys.exit(Errors.invalidOperands())
+
+    def DPRINT(self, operand):
+        self.actualIdx += 1
+
+        firstOper = self.typeWithValue(operand[0])
+        if firstOper[0] == "nil":
+            print("nil", file=sys.stderr)
+        elif firstOper[0] == "bool":
+            if firstOper[1] == True:
+                print("true", file=sys.stderr)
+            else:
+                print("false", file=sys.stderr)
+        elif firstOper[0] == "string":
+            if firstOper[1] == None:
+                print("")
+            outPut = firstOper[1]
+            outPut = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), outPut)
+            print(outPut)
+        else:
+            print(str(firstOper[0]), file=sys.stderr)
+
+    def BREAK(self, operand):
+        self.actualIdx += 1
+        print("LF:")
+        for el in self.localFrame:
+            print(el.name, el.value, el.varType)
+        print("GF:")
+        for el in self.gloablFrame:
+            print(el.name, el.value, el.varType)
+        print("TF:")
+        for el in self.temporaryFrame:
+            print(el.name, el.value, el.varType)
+        print("Instruction order:", self.actualIdx)
+        print("Labels:")
+        for el in self.labelList:
+            print(el.name, "indx:", el.idx)
 
 #interpret
 def interpret(instrList, inputFile):
@@ -968,9 +1038,7 @@ def main():
     for instruction in instrList:
         parse(instruction[1:])
 
-    print("Interpret starts..")
     interpret(instrList, inputFile)
-    print("Program success")
     sys.exit(0)
 
 #calling main function
