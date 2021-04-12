@@ -597,20 +597,139 @@ class program:
         else:
             sys.exit(Errors.nonExistingVariable())
     
-    def WRITE(self, operand):
+    def WRITE(self, operand): #TODO
         self.actualIdx += 1
-        destObj = self.typeWithValue(operand[0][2])
-        if destObj[1] != None:
-            if destObj[0] == "string":
-                destObj[1] = destObj[1].replace("&lt;", "<")
-                destObj[1] = destObj[1].replace("&gt;", ">")
-                destObj[1] = destObj[1].replace("&amp;", "&")
-                destObj[1] = destObj[1].replace("&lt;", ">")
-                destObj[1] = re.sub(r"\\\d{3}", lambda x : chr(int(x[2:])), destObj[1])
-
+        destObj = self.typeWithValue(operand[0])
+        if destObj[0] == "string":
+            outPut = destObj[1]
+            #destObj[1] = re.sub(r"\\\d{3}", lambda x : chr(int(x[2:])), destObj[1])
+            print(outPut)
+        elif destObj[0] == "bool":
+            if destObj[1]:
+                print("true", end="")
+            else:
+                print("false", end="")
+        elif destObj[0] == "nil":
+            print(end="")
         else:
-
+            print(destObj[1])
         
+    def CONCAT(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+        
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+
+            if firstOper[0] == secondOper[0] and firstOper[0] == "string":
+                destObj.value = firstOper[1] + secondOper[1]
+                destObj.varType = "string"
+            else:
+                sys.exit(Errors.invalidOperands())
+            
+        else:
+            sys.exit(Errors.nonExistingVariable())
+
+    def STRLEN(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+        
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            
+            if firstOper[0] == "string":
+                destObj.value = len(firstOper[1])    
+                destObj.varType = "int"
+            else:
+                sys.exit(Errors.invalidOperands())
+            
+        else:
+            sys.exit(Errors.nonExistingVariable())
+
+    def GETCHAR(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+        
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+
+            if secondOper[0] == "int" and firstOper[0] == "string":
+                try:
+                    destObj.value = firstOper[1][secondOper[1]]
+                except:
+                    sys.exit(Errors.stringError())
+
+                destObj.varType = "string"
+            else:
+                sys.exit(Errors.invalidOperands())
+            
+        else:
+            sys.exit(Errors.nonExistingVariable())
+    
+    def SETCHAR(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+        
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+            
+            if secondOper[0] == "string" and firstOper[0] == "int" and destObj.varType == "string":
+                try:
+                    idx = firstOper[1]
+                    strToChange = destObj.value
+                    destObj.value = "".join((strToChange[:idx], secondOper[1][0], strToChange[idx+1:]))
+                    
+                except:
+                    sys.exit(Errors.stringError())
+
+                destObj.varType = "string"
+            else:
+                sys.exit(Errors.invalidOperands())
+            
+        else:
+            sys.exit(Errors.nonExistingVariable())
+
+    def TYPE(self, operand):
+        self.actualIdx += 1 
+        destObj = self.varObj(operand[0][2])
+        srcObj = False
+        firstOper = False
+        nilFlag = False
+
+        if operand[1][1] == "var":
+            srcObj = self.varObj(operand[1][2])
+            if srcObj == None:
+                nilFlag = True
+        else:
+            firstOper = self.typeWithValue(operand[1])
+
+        if destObj != None:
+            if firstOper:
+                destObj.value = firstOper[0]
+                destObj.varType = "string"
+            elif nilFlag:
+                destObj.value = "nil"
+                destObj.varType = "string"
+            else:
+                destObj.value = srcObj.varType
+                destObj.varType = "string"
+        else:
+            sys.exit(Errors.nonExistingVariable())
+        
+    def LABEL(self, operand):
+        self.actualIdx += 1
+    
+    def JUMP(self, operand):
+        idx = label.labelIdx(self.labelList, operand[0][2])
+        if idx == -1:
+            sys.exit(Errors.semError())
+        self.actualIdx = idx
+    
+    def JUMPIFEQ(self, operand):
+
 #interpret
 def interpret(instrList, inputFile):
     programIPP21 = program(instrList)
