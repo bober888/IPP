@@ -8,6 +8,7 @@ Date: 06.04.2021
 import sys
 import re
 import xml.etree.ElementTree as ET
+import fileinput
 
 #Class with errors codes
 class Errors:
@@ -107,6 +108,8 @@ class variable:
 #class for program interpretation
 class program:
     #attributes
+    #input file
+    inputFile = None
     #list for labels
     labelList = []
     #lists for variable
@@ -142,7 +145,11 @@ class program:
                 self.labelList.append(label(labelName, idx))  
 
             idx += 1
-    
+
+   #sets input file if it exist 
+    def setInputFile(self, filename):
+        self.inputFile = filename
+
     #Function read instructions and calls theirs functions
     def readInstructions(self, instrList):
         countInstr = len(instrList)
@@ -462,9 +469,153 @@ class program:
         else:
             sys.exit(Errors.nonExistingVariable())
         
+    def AND(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+            
+            if firstOper[0] == secondOper[0] and firstOper[0] == "bool":
+                destObj.value = firstOper[1] and secondOper[1]
+            else:
+                sys.exit(Errors.invalidOperands())
+
+            destObj.varType = "bool"
+        else:
+            sys.exit(Errors.nonExistingVariable())
+
+    def OR(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+            
+            if firstOper[0] == secondOper[0] and firstOper[0] == "bool":
+                destObj.value = firstOper[1] or secondOper[1]
+            else:
+                sys.exit(Errors.invalidOperands())
+
+            destObj.varType = "bool"
+        else:
+            sys.exit(Errors.nonExistingVariable())
+    
+    def NOT(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            
+            if firstOper[0] == "bool":
+                destObj.value = not(firstOper[1])
+            else:
+                sys.exit(Errors.invalidOperands())
+
+            destObj.varType = "bool"
+        else:
+            sys.exit(Errors.nonExistingVariable())
+    
+    def INT2CHAR(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            
+            if firstOper[0] == "int":
+                try:
+                    destObj.value = chr(firstOper[1])
+                except:
+                    sys.exit(Errors.stringError())
+            else:
+                sys.exit(Errors.invalidOperands())
+
+            destObj.varType = "string"
+        else:
+            sys.exit(Errors.nonExistingVariable())
+    
+    def STRI2INT(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+            if secondOper[0] == "int" and firstOper[0] == "string":
+                try:
+                    symbToOrd = firstOper[1][secondOper[1]]
+                    destObj.value = ord(symbToOrd)
+                except:
+                    sys.exit(Errors.stringError())
+            else:
+                sys.exit(Errors.invalidOperands())
+
+            destObj.varType = "string"
+        else:
+            sys.exit(Errors.nonExistingVariable())
+    
+    def READ(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+        typeToRead = operand[1][2]
+        if destObj != None:
+            if self.inputFile != None:
+                try:
+                    inputStr = fileinput.input(files=inputFile)
+                except:
+                    sys.exit(Errors.notPossibleOpenInputFile())
+            else:
+                inputStr = input()
+
+            if inputStr == None:
+                dest.Obj.value = None
+                dest.Obj.varType = "nil"
+            elif typeToRead == "int":
+                try:
+                    destObj.value = int(inputStr)
+                    destObj.varType = "int"
+                except:
+                    dest.Obj.value = None
+                    dest.Obj.varType = "nil"
+            elif typeToRead == "bool":
+
+                if inputStr.lower() == "true":
+                    destObj.value = True
+                else:
+                    destObj.value = False
+                destObj.varType = "bool"
+
+            elif typeToRead == "string":
+                destObj.value = inputStr
+                destObj.varType = "string"
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.nonExistingVariable())
+    
+    def WRITE(self, operand):
+        self.actualIdx += 1
+        destObj = self.typeWithValue(operand[0][2])
+        if destObj[1] != None:
+            if destObj[0] == "string":
+                destObj[1] = destObj[1].replace("&lt;", "<")
+                destObj[1] = destObj[1].replace("&gt;", ">")
+                destObj[1] = destObj[1].replace("&amp;", "&")
+                destObj[1] = destObj[1].replace("&lt;", ">")
+                destObj[1] = re.sub(r"\\\d{3}", lambda x : chr(int(x[2:])), destObj[1])
+
+        else:
+
+        
 #interpret
-def interpret(instrList):
+def interpret(instrList, inputFile):
     programIPP21 = program(instrList)
+    if inputFile:
+        programIPP21.setInputFile(inputFile)
     programIPP21.readInstructions(instrList)
     return
     
@@ -651,7 +802,7 @@ def checkChilds(root):
     for x in InstrList:
     #adding instructions to one list
         #order must be >= 0
-        if not(x[0].isdigit()) or int(x[0]) < 0:
+        if not(x[0].isdigit()) or int(x[0]) <= 0:
             sys.exit(Errors.unexpectedXML())
 
         #checks if numbers are not duplicates
@@ -699,7 +850,7 @@ def main():
         parse(instruction[1:])
 
     print("Interpret starts..")
-    interpret(instrList)
+    interpret(instrList, inputFile)
     print("Program success")
     sys.exit(0)
 
