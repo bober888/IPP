@@ -90,7 +90,18 @@ class variable:
         self.varType = other.varType
     
     def moveValue(self, type1, value):
-        self.value = value
+        if type1 == "int":
+            self.value = int(value)
+        elif type1 == "string":
+            self.value = value
+        elif type1 == "bool":
+            if value == "false":
+                self.value == False
+            else:
+                self.value = True
+        elif type1 == "nil":
+            self.value = None
+        
         self.varType = type1
 
 #class for program interpretation
@@ -154,10 +165,34 @@ class program:
         for el in self.temporaryFrame:
             print(el.name, el.value, el.varType)
 
-
+    def typeWithValue(self, operand): #returns (type, value) of operand
+        if operand[1] == "var":
+            firOperand = self.varObj(operand[2])
+            if firOperand != None:
+                return (firOperand.varType, firOperand.value)
+            else:
+                sys.exit(Errors.nonExistingVariable())
+        
+        elif operand[1] == "int":
+            return ("int", int(operand[2]))
+        
+        elif operand[1] == "string":
+            return ("string", operand[2])
+        
+        elif operand[1] == "bool":
+            if operand[2].upper() == "TRUE":
+                boolValue = True
+            elif operand[2].upper() == "FALSE":
+                boolValue = False
+            return ("bool", boolValue)
+        
+        elif operand[1] == "nil":
+            return ("nil", None)
     
     #returns object if it exist
     def varObj(self, varName):
+        if varName == None:
+            return None
         frame = varName[:2]
         name = varName[3:]
         if frame == "GF":
@@ -301,7 +336,132 @@ class program:
         else:
             sys.exit(Errors.invalidValue())
     
-    #def ADD(self, operand):
+    def ADD(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+            
+            if firstOper[0] == "int" and secondOper[0] == "int":
+                destObj.value = firstOper[1] + secondOper[1]
+                destObj.varType = "int"
+            else:
+                sys.exit(Errors.invalidOperands())
+
+        else:
+            sys.exit(Errors.nonExistingVariable())
+    
+    def SUB(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+            
+            if firstOper[0] == "int" and secondOper[0] == "int":
+                destObj.value = firstOper[1] - secondOper[1]
+                destObj.varType = "int"
+            else:
+                sys.exit(Errors.invalidOperands())
+
+        else:
+            sys.exit(Errors.nonExistingVariable())
+    
+    def MUL(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+            
+            if firstOper[0] == "int" and secondOper[0] == "int":
+                destObj.value = firstOper[1] * secondOper[1]
+                destObj.varType = "int"
+            else:
+                sys.exit(Errors.invalidOperands())
+
+        else:
+            sys.exit(Errors.nonExistingVariable())
+    
+    def IDIV(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+            
+            if firstOper[0] == "int" and secondOper[0] == "int":
+                if secondOper[1] == 0:
+                    sys.exit(Errors.badValueOperand())
+                destObj.value = firstOper[1] // secondOper[1]
+                destObj.varType = "int"
+            else:
+                sys.exit(Errors.invalidOperands())
+
+        else:
+            sys.exit(Errors.nonExistingVariable())
+        
+    def LT(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+            
+            if firstOper[0] == secondOper[0] and firstOper[0] != "nil":
+                destObj.value = firstOper[1] < secondOper[1]
+                destObj.varType = "bool"
+            else:
+                sys.exit(Errors.invalidOperands())
+            
+        else:
+            sys.exit(Errors.nonExistingVariable())
+
+    def GT(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+            
+            if firstOper[0] == secondOper[0] and firstOper[0] != "nil":
+                destObj.value = firstOper[1] > secondOper[1]
+                destObj.varType = "bool"
+            else:
+                sys.exit(Errors.invalidOperands())
+            
+        else:
+            sys.exit(Errors.nonExistingVariable())
+    
+    def EQ(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+            
+            if firstOper[0] == secondOper[0] or firstOper[0] == "nil" or secondOper[0] == "nil":
+                if firstOper[0] != "nil" and secondOper[0] == "nil":
+                    destObj.value = False
+                elif firstOper[0] == "nil" and secondOper[0] != "nil":
+                    destObj.value = False
+                else:
+                    destObj.value = firstOper[1] == secondOper[1]
+            else:
+                sys.exit(Errors.invalidOperands())
+
+            destObj.varType = "bool"
+        else:
+            sys.exit(Errors.nonExistingVariable())
+        
 #interpret
 def interpret(instrList):
     programIPP21 = program(instrList)
@@ -375,9 +535,21 @@ def parse(instruction):
         elif operand == "symb":
             if instruction[operandNumber][1] not in symbList:
                 sys.exit(Errors.unexpectedXML())
-            if (instruction[operandNumber][2] != None) and instruction[operandNumber][1] == "string":
-                if not(re.match(symb, instruction[operandNumber][2])):
-                    sys.exit(Errors.unexpectedXML())
+           
+            if (instruction[operandNumber][1] == "int") and re.match(tint, instruction[operandNumber][2]):
+                pass
+            elif (instruction[operandNumber][1] == "bool") and re.match(tbool, instruction[operandNumber][2]):
+                pass
+            elif (instruction[operandNumber][1] == "nil") and re.match(tnil, instruction[operandNumber][2]):
+                pass
+            elif (instruction[operandNumber][1] == "string") and (instruction[operandNumber][2] != None) and re.match(tstring, instruction[operandNumber][2]):
+                pass
+            elif (instruction[operandNumber][1] == "var") and re.match(var, instruction[operandNumber][2]):
+                pass
+            elif (instruction[operandNumber][1] == "string") and (instruction[operandNumber][2] == None):
+                pass
+            else:
+                sys.exit(Errors.unexpectedXML())
 
         elif operand == "label":
             if instruction[operandNumber][1] != "label" or not(re.match(label, instruction[operandNumber][2])):
