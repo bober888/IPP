@@ -78,20 +78,29 @@ class variable:
             return True
         else:
             return False
-    
+
+    #checks if var with name is exists in a list    
     def varExist(varList, name):
         for el in varList:
             if el.isExist(name):
                 return True
         return False
     
+    #move var var
     def move(self, other):
         self.value = other.value
         self.varType = other.varType
     
+    #move var value
     def moveValue(self, type1, value):
         if type1 == "int":
             self.value = int(value)
+        elif type1 == "float":
+            if (isinstance(value, float)):
+                print("kek")
+                self.value = float(value)
+            else:
+                self.value = float.fromhex(value)
         elif type1 == "string":
             if value != None:
                 value = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), value)
@@ -162,9 +171,9 @@ class program:
             instrName = instrList[self.actualIdx][1]
             operands = instrList[self.actualIdx][2:]
             methodToCall = getattr(program, instrName.upper())
-            methodToCall(self, operands)
+            methodToCall(self, operands)    #call function generated from instr name
 
-
+    #Functions is needed for instructions, which are works with types and values
     def typeWithValue(self, operand): #returns (type, value) of operand
         if operand[1] == "var":
             firOperand = self.varObj(operand[2])
@@ -176,6 +185,9 @@ class program:
         elif operand[1] == "int":
             return ("int", int(operand[2]))
         
+        elif operand[1] == "float":
+            return ("float", float.fromhex(operand[2]))
+
         elif operand[1] == "string":
             return ("string", operand[2])
         
@@ -189,7 +201,7 @@ class program:
         elif operand[1] == "nil":
             return ("nil", None)
     
-    #returns object if it exist
+    #returns object if it exist, else return None
     def varObj(self, varName):
         if varName == None:
             return None
@@ -231,6 +243,10 @@ class program:
 
         return False      
 
+    """
+    Section with all possible instructions implemented in methods. Every function have operand, which is the list with operands.
+    List with operands can be empty or contains 1 or 3 operand in format (operandNumber, operandType, operandName) 
+    """
     def DEFVAR(self, operand):
         self.actualIdx += 1
         frame = operand[0][2][:2]
@@ -262,8 +278,6 @@ class program:
             if srcType == "var":
                 varSrc = self.varObj(operand[1][2])
                 srcFrame = operand[1][2][3:]
-
-
                 
                 #checks if srcVar is exist
                 if (srcFrame == "LF" and not(self.localFrameFlag)) or (srcFrame == "TF" and not(self.temporaryFrameFlag)):
@@ -330,7 +344,7 @@ class program:
         self.actualIdx += 1
         obj = self.varObj(operand[0][2])
 
-        if (obj == None) and (operand[0][1] != "var"): #int|bool|string|nil
+        if (obj == None) and (operand[0][1] != "var"): #int|bool|string|nil|float
             self.stackValue.append((operand[0][1], operand[0][2]))
         elif obj != None:
             if obj.varType != None:
@@ -363,6 +377,9 @@ class program:
             if firstOper[0] == "int" and secondOper[0] == "int":
                 destObj.value = firstOper[1] + secondOper[1]
                 destObj.varType = "int"
+            elif firstOper[0] == "float" and secondOper[0] == "float":
+                destObj.value = firstOper[1] + secondOper[1]
+                destObj.varType = "float"
             elif firstOper[0] == None or secondOper[0] == None:
                 sys.exit(Errors.invalidValue())
             else:
@@ -382,6 +399,9 @@ class program:
             if firstOper[0] == "int" and secondOper[0] == "int":
                 destObj.value = firstOper[1] - secondOper[1]
                 destObj.varType = "int"
+            elif firstOper[0] == "float" and secondOper[0] == "float":
+                destObj.value = firstOper[1] - secondOper[1]
+                destObj.varType = "float"
             elif firstOper[0] == None or secondOper[0] == None:
                 sys.exit(Errors.invalidValue())
             else:
@@ -401,6 +421,9 @@ class program:
             if firstOper[0] == "int" and secondOper[0] == "int":
                 destObj.value = firstOper[1] * secondOper[1]
                 destObj.varType = "int"
+            elif firstOper[0] == "float" and secondOper[0] == "float":
+                destObj.value = firstOper[1] * secondOper[1]
+                destObj.varType = "float"
             elif firstOper[0] == None or secondOper[0] == None:
                 sys.exit(Errors.invalidValue())
             else:
@@ -422,6 +445,12 @@ class program:
                     sys.exit(Errors.badValueOperand())
                 destObj.value = firstOper[1] // secondOper[1]
                 destObj.varType = "int"
+            elif firstOper[0] == "float" and secondOper[0] == "float":
+                if secondOper[1] == 0:
+                    sys.exit(Errors.badValueOperand())
+                destObj.value = firstOper[1] // secondOper[1]
+                destObj.varType = "float"
+
             elif firstOper[0] == None or secondOper[0] == None:
                 sys.exit(Errors.invalidValue())
             else:
@@ -530,13 +559,8 @@ class program:
         if destObj != None:
             firstOper = self.typeWithValue(operand[1])
             secondOper = self.typeWithValue(operand[2])
-            #print("AND")
             if firstOper[0] == secondOper[0] and firstOper[0] == "bool":
                 destObj.value = firstOper[1] and secondOper[1]
-                #print(firstOper[1])
-                #print(secondOper[1])
-                #print(destObj.value)
-                #print(destObj.varType)
 
             elif firstOper[0] == None or secondOper[0] == None:
                 sys.exit(Errors.invalidValue())
@@ -648,10 +672,18 @@ class program:
             if inputStr == None:
                 dest.Obj.value = None
                 dest.Obj.varType = "nil"
+
             elif typeToRead == "int":
                 try:
                     destObj.value = int(inputStr)
                     destObj.varType = "int"
+                except:
+                    destObj.value = None
+                    destObj.varType = "nil"
+
+            elif typeToRead == "float":
+                try:
+                    destObj.moveValue("float", inputStr)
                 except:
                     destObj.value = None
                     destObj.varType = "nil"
@@ -678,6 +710,7 @@ class program:
     def WRITE(self, operand):
         self.actualIdx += 1        
         destObj = self.typeWithValue(operand[0])
+        
         if destObj[0] == "string":
             if destObj[1] == None:
                 print("", end="")
@@ -697,6 +730,8 @@ class program:
             print(end="")
         elif destObj[1] == None:
             print("", end="")
+        elif destObj[0] == "float":
+            print(float.hex(destObj[1]), end="")
         else:
             print(destObj[1], end="")
         
@@ -954,6 +989,62 @@ class program:
         for el in self.labelList:
             print(el.name, "indx:", el.idx)
 
+    def INT2FLOAT(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            if firstOper[0] == "int":
+                destObj.value = float(firstOper[1])
+                destObj.varType = "float"
+            elif firstOper[0] == None:
+                sys.exit(Errors.invalidValue())
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.nonExistingVariable())
+
+    def DIV(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            secondOper = self.typeWithValue(operand[2])
+
+            if firstOper[0] == "float" and secondOper[0] == "float":
+                if secondOper[1] == 0:
+                    sys.exit(Errors.badValueOperand())
+                destObj.value = firstOper[1] / secondOper[1]
+                destObj.varType = "float"
+
+            elif firstOper[0] == None or secondOper[0] == None:
+                sys.exit(Errors.invalidValue())
+            else:
+                sys.exit(Errors.invalidOperands())
+
+        else:
+            sys.exit(Errors.nonExistingVariable())
+
+    def FLOAT2INT(self, operand):
+        self.actualIdx += 1
+        destObj = self.varObj(operand[0][2])
+
+        if destObj != None:
+            firstOper = self.typeWithValue(operand[1])
+            if firstOper[0] == "float":
+                destObj.value = int(firstOper[1])
+                destObj.varType = "int"
+            
+            elif firstOper[0] == None:
+                sys.exit(Errors.invalidValue())
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.nonExistingVariable())
+
+
 #interpret
 def interpret(instrList, inputFile):
     programIPP21 = program(instrList)
@@ -964,17 +1055,22 @@ def interpret(instrList, inputFile):
     
 #parse instructions
 def parse(instruction):
-    #constants
+    #constants patterns
     var = r"^(GF|TF|LF)@(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z])+(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z]|[0-9])*$" #ok
     tbool = r"^(true|false)$" #ok
     tnil = r"^nil$" #ok
     tint = r"^(\-|\+)?[0-9]+$" #ok
+    tfloat1 = r"^(\-|\+)?[0-9]*.([0-9])*$" #ok
+    tfloat2 = r"(\-|\+)?[0-9]+p(\-|\+)?[0-9]+$" #ok
+    tfloat = r"^(\+|\-)?0x([0-9])*.([A-Z]|[a-z]|[0-9])*(p)?(\+|\-)?[0-9]*$"
+    tfloat = "((" + tfloat + ")|(" + tint +  ")|(" + tfloat1 + ")|(" + tfloat2 + "))"
     tstring = r"^([^#\s\\]|(\\\d{3}))+$" #ok
     symb = "((" + var + ")|(" + tbool + ")|(" + tnil + ")|(" + tint + ")|(" + tstring + "))"  #ok
     label = r"^(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z])+(\_|\?|\-|\\$|\&|\%|\*|\!|[A-Z]|[a-z]|[0-9])*$" #ok
-    ttype = r"^(int|string|bool)$"  #??
-    symbList = ["var", "bool", "nil", "int", "string"]
+    ttype = r"^(int|string|bool|float)$"  #??
+    symbList = ["var", "bool", "nil", "int", "string", "float"]
     
+    #array with Instructions and their operand's types
     instr = {
         "MOVE": ["var", "symb"],
         "CREATEFRAME": [],
@@ -1011,6 +1107,9 @@ def parse(instruction):
         "EXIT": ["symb"],
         "DPRINT": ["symb"],
         "BREAK": [],
+        "INT2FLOAT": ["var", "symb"],
+        "FLOAT2INT": ["var", "symb"],
+        "DIV": ["var", "symb", "symb"]
     }
 
     #If instruction is exist
@@ -1020,7 +1119,11 @@ def parse(instruction):
         sys.exit(Errors.unexpectedXML())
     
     operandNumber = 1
+    
+    #check syntax XML input, if type = real type and if instructions are correct
     for operand in operands:
+        if operandNumber == len(instruction):
+            sys.exit(Errors.unexpectedXML())
         if operand == "var":
 
             if instruction[operandNumber][1] != "var" or not(re.match(var, instruction[operandNumber][2])):
@@ -1041,6 +1144,8 @@ def parse(instruction):
             elif (instruction[operandNumber][1] == "var") and re.match(var, instruction[operandNumber][2]):
                 pass
             elif (instruction[operandNumber][1] == "string") and (instruction[operandNumber][2] == None):
+                pass
+            elif (instruction[operandNumber][1] == "float") and re.match(tfloat, instruction[operandNumber][2]):
                 pass
             else:
                 sys.exit(Errors.unexpectedXML())
@@ -1203,6 +1308,7 @@ def main():
     instrList = XMLParse(sourceFile)
     
     for instruction in instrList:
+        #print(instruction)
         parse(instruction[1:])
 
     interpret(instrList, inputFile)
