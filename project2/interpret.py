@@ -161,7 +161,6 @@ class program:
                 break #CHANGE TO RETURN
             instrName = instrList[self.actualIdx][1]
             operands = instrList[self.actualIdx][2:]
-            
             methodToCall = getattr(program, instrName.upper())
             methodToCall(self, operands)
 
@@ -263,19 +262,21 @@ class program:
             if srcType == "var":
                 varSrc = self.varObj(operand[1][2])
                 srcFrame = operand[1][2][3:]
+
+
                 
                 #checks if srcVar is exist
                 if (srcFrame == "LF" and not(self.localFrameFlag)) or (srcFrame == "TF" and not(self.temporaryFrameFlag)):
                     sys.exit(Errors.nonExistingFrame())
                 elif varSrc == None:
                     sys.exit(Errors.nonExistingVariable())
+                elif varSrc.varType == None:
+                    sys.exit(Errors.invalidValue())
 
                 varDest.move(varSrc)
             else:
                 varDest.moveValue(srcType, operand[1][2])
-                
                     
-
         elif (destFrame == "LF" and not(self.localFrameFlag)) or (destFrame == "TF" and not(self.temporaryFrameFlag)):
             sys.exit(Errors.nonExistingFrame())
         else:
@@ -332,7 +333,10 @@ class program:
         if (obj == None) and (operand[0][1] != "var"): #int|bool|string|nil
             self.stackValue.append((operand[0][1], operand[0][2]))
         elif obj != None:
-            self.stackValue.append((obj.varType, obj.value))
+            if obj.varType != None:
+                self.stackValue.append((obj.varType, obj.value))
+            else:
+                sys.exit(Errors.invalidValue())
         else:
             sys.exit(Errors.nonExistingVariable())
 
@@ -378,6 +382,8 @@ class program:
             if firstOper[0] == "int" and secondOper[0] == "int":
                 destObj.value = firstOper[1] - secondOper[1]
                 destObj.varType = "int"
+            elif firstOper[0] == None or secondOper[0] == None:
+                sys.exit(Errors.invalidValue())
             else:
                 sys.exit(Errors.invalidOperands())
 
@@ -395,6 +401,8 @@ class program:
             if firstOper[0] == "int" and secondOper[0] == "int":
                 destObj.value = firstOper[1] * secondOper[1]
                 destObj.varType = "int"
+            elif firstOper[0] == None or secondOper[0] == None:
+                sys.exit(Errors.invalidValue())
             else:
                 sys.exit(Errors.invalidOperands())
 
@@ -431,11 +439,26 @@ class program:
             secondOper = self.typeWithValue(operand[2])
             
             if firstOper[0] == secondOper[0] and firstOper[0] != "nil":
-                destObj.value = firstOper[1] < secondOper[1]
+                if (firstOper[0] == "string" and secondOper[1] == None):
+                    destObj.value = False
+                elif (firstOper[1] == None and secondOper[0] == "string"):
+                    destObj.value = True
+                elif (firstOper[1] == None and firstOper[1] == None and secondOper[0] == "string"):
+                    destObj.value = False
+                elif (firstOper[0] == "string" and firstOper[1] != None and secondOper[1] != None):
+                    string1 = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), firstOper[1])
+                    string2 = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), secondOper[1])
+                    destObj.value = string1 < string2
+                else:
+                    destObj.value = firstOper[1] < secondOper[1]
+
                 destObj.varType = "bool"
+
+            elif firstOper[0] == None or secondOper[0] == None:
+                sys.exit(Errors.invalidValue())
             else:
                 sys.exit(Errors.invalidOperands())
-            
+
         else:
             sys.exit(Errors.nonExistingVariable())
 
@@ -534,8 +557,11 @@ class program:
             
             if firstOper[0] == secondOper[0] and firstOper[0] == "bool":
                 destObj.value = firstOper[1] or secondOper[1]
+            elif firstOper[0] == None or secondOper[0] == None:
+                sys.exit(Errors.invalidValue())
             else:
                 sys.exit(Errors.invalidOperands())
+
 
             destObj.varType = "bool"
         else:
@@ -550,6 +576,8 @@ class program:
             
             if firstOper[0] == "bool":
                 destObj.value = not(firstOper[1])
+            elif firstOper[0] == None:
+                sys.exit(Errors.invalidValue())
             else:
                 sys.exit(Errors.invalidOperands())
 
@@ -587,15 +615,19 @@ class program:
             firstOper = self.typeWithValue(operand[1])
             secondOper = self.typeWithValue(operand[2])
             if secondOper[0] == "int" and firstOper[0] == "string":
+                if secondOper[1] < 0 or secondOper[1] >= len(firstOper[1]):
+                    sys.exit(Errors.stringError())
                 try:
                     symbToOrd = firstOper[1][secondOper[1]]
                     destObj.value = ord(symbToOrd)
                 except:
                     sys.exit(Errors.stringError())
+            elif secondOper[0] == None or firstOper[0] == None:
+                sys.exit(Errors.invalidValue())
             else:
                 sys.exit(Errors.invalidOperands())
 
-            destObj.varType = "string"
+            destObj.varType = "int"
         else:
             sys.exit(Errors.nonExistingVariable())
     
@@ -623,13 +655,17 @@ class program:
                 except:
                     destObj.value = None
                     destObj.varType = "nil"
+
             elif typeToRead == "bool":
-                
                 if inputStr.lower() == "true":
                     destObj.value = True
-                else:
+                    destObj.varType = "bool"
+                elif inputStr.lower() == "false":
                     destObj.value = False
-                destObj.varType = "bool"
+                    destObj.varType = "bool"
+                else:
+                    destObj.value = None
+                    destObj.varType = "nil"
 
             elif typeToRead == "string":
                 destObj.value = inputStr
@@ -655,10 +691,12 @@ class program:
                 print("true", end="")
             else:
                 print("false", end="")
-        elif destObj[1] == None:
-            print("", end="")
+        elif destObj[1] == None and operand[0][1] == "var" and destObj[0] != "nil":
+            sys.exit(Errors.invalidValue())
         elif destObj[0] == "nil":
             print(end="")
+        elif destObj[1] == None:
+            print("", end="")
         else:
             print(destObj[1], end="")
         
@@ -698,8 +736,13 @@ class program:
             firstOper = self.typeWithValue(operand[1])
             
             if firstOper[0] == "string":
-                destObj.value = len(firstOper[1])    
+                if firstOper[1] == None:
+                    destObj.value = 0
+                else:
+                    destObj.value = len(firstOper[1])    
                 destObj.varType = "int"
+            elif firstOper[0] == None:
+                sys.exit(Errors.invalidValue())
             else:
                 sys.exit(Errors.invalidOperands())
             
@@ -739,16 +782,23 @@ class program:
             firstOper = self.typeWithValue(operand[1])
             secondOper = self.typeWithValue(operand[2])
             
-            if secondOper[0] == "string" and firstOper[0] == "int" and destObj.varType == "string":
+            if secondOper[0] == "string" and firstOper[0] == "int" and destObj.varType == "string" and destObj.value != None:
+                if firstOper[1] < 0 or firstOper[1] >= len(destObj.value):
+                    sys.exit(Errors.stringError())
                 try:
                     idx = firstOper[1]
-                    strToChange = destObj.value
-                    destObj.value = "".join((strToChange[:idx], secondOper[1][0], strToChange[idx+1:]))
-                    
+                    strToChange = destObj.value[:]
+                    strToChange = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), strToChange)
+                    strToInput = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), secondOper[1])
+                    strToChange = "".join((strToChange[:idx], strToInput[0], strToChange[idx+1:]))
+                    destObj.value = strToChange
                 except:
                     sys.exit(Errors.stringError())
 
                 destObj.varType = "string"
+
+            elif firstOper[0] == None or secondOper[0] == None or (destObj.value == None and destObj.varType != "nil"):
+                sys.exit(Errors.invalidValue())
             else:
                 sys.exit(Errors.invalidOperands())
             
@@ -765,7 +815,7 @@ class program:
         if operand[1][1] == "var":
             srcObj = self.varObj(operand[1][2])
             if srcObj == None:
-                nilFlag = True
+                sys.exit(Errors.nonExistingVariable())
         else:
             firstOper = self.typeWithValue(operand[1])
 
@@ -794,16 +844,33 @@ class program:
     def JUMPIFEQ(self, operand):
         firstOper = self.typeWithValue(operand[1])
         secondOper = self.typeWithValue(operand[2])
+        idx = label.labelIdx(self.labelList, operand[0][2])
         self.actualIdx += 1
-        
+
+        if idx == -1:
+            sys.exit(Errors.semError())
+
         if secondOper[0] == firstOper[0]:
-            if secondOper[1] == firstOper[1]:
-                idx = label.labelIdx(self.labelList, operand[0][2])
-                if idx == -1:
-                    sys.exit(Errors.semError())
+            if (firstOper[0] == "string" and firstOper[1] != None and secondOper[1] != None):
+                string1 = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), firstOper[1])
+                string2 = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), secondOper[1])
+            elif (firstOper[0] == "string" and firstOper[1] != None and secondOper[1] == None):
+                string1 = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), firstOper[1])
+                string2 = None
+            elif (firstOper[0] == "string" and firstOper[1] == None and secondOper[1] != None):
+                string1 = None
+                string2 = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), secondOper[1])
+            else:
+                string1 = firstOper[1]
+                string2 = secondOper[1]
+            
+            if string2 == string1:
                 self.actualIdx = idx
+
         elif secondOper[0] == "nil" or firstOper[0] == "nil":
-            pass;    
+            pass
+        elif firstOper[0] == None or secondOper[0] == None:
+            sys.exit(Errors.invalidValue())
         else:
             sys.exit(Errors.invalidOperands())
 
