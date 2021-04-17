@@ -97,7 +97,6 @@ class variable:
             self.value = int(value)
         elif type1 == "float":
             if (isinstance(value, float)):
-                print("kek")
                 self.value = float(value)
             else:
                 self.value = float.fromhex(value)
@@ -108,8 +107,10 @@ class variable:
         elif type1 == "bool":
             if value == "false":
                 self.value = False
-            else:
+            elif value == "true":
                 self.value = True
+            else: 
+                self.value = value
         elif type1 == "nil":
             self.value = None
         
@@ -958,20 +959,18 @@ class program:
 
         firstOper = self.typeWithValue(operand[0])
         if firstOper[0] == "nil":
-            print("nil", file=sys.stderr)
+            sys.stderr.write("nil")
         elif firstOper[0] == "bool":
             if firstOper[1] == True:
-                print("true", file=sys.stderr)
+                sys.stderr.write("true")
             else:
-                print("false", file=sys.stderr)
+                sys.stderr.write("false")
         elif firstOper[0] == "string":
             if firstOper[1] == None:
-                print("")
-            outPut = firstOper[1]
-            outPut = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), outPut)
-            print(outPut)
+                outPut = firstOper[1]
+                outPut = re.sub(r"\\([0-9]{3})", lambda x: chr(int(x[1])), outPut)
         else:
-            print(str(firstOper[0]), file=sys.stderr)
+            sys.stderr.write(str(firstOper[0]))
 
     def BREAK(self, operand):
         self.actualIdx += 1
@@ -1044,6 +1043,244 @@ class program:
         else:
             sys.exit(Errors.nonExistingVariable())
 
+    def CLEARS(self, operand):
+        self.actualIdx += 1
+        self.stackValue = []
+
+    def ADDS(self, operand):
+        self.actualIdx += 1
+        if len(self.stackValue) > 1:
+            firstOper = self.stackValue.pop()
+            secondOper = self.stackValue.pop()
+            if firstOper[0] == "int" and secondOper[0] == "int":
+                res = int(firstOper[1]) + int(secondOper[1])
+                self.stackValue.append(("int", res))
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+        
+    def SUBS(self, operand):
+        self.actualIdx += 1
+        if len(self.stackValue) > 1:
+            secondOper = self.stackValue.pop()
+            firstOper = self.stackValue.pop()
+            if firstOper[0] == "int" and secondOper[0] == "int":
+                res = int(firstOper[1]) - int(secondOper[1])
+                self.stackValue.append(("int", res))
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+
+    def MULS(self, operand):
+        self.actualIdx += 1
+        if len(self.stackValue) > 1:
+            secondOper = self.stackValue.pop()
+            firstOper = self.stackValue.pop()
+            if firstOper[0] == "int" and secondOper[0] == "int":
+                res = int(firstOper[1]) * int(secondOper[1])
+                self.stackValue.append(("int", res))
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+
+    def IDIVS(self, operand):
+        self.actualIdx += 1
+        if len(self.stackValue) > 1:
+            secondOper = self.stackValue.pop()
+            firstOper = self.stackValue.pop() 
+
+            if firstOper[0] == "int" and secondOper[0] == "int":
+                if int(secondOper[1]) == 0:
+                    sys.exit(Errors.invalidValue())
+                res = int(firstOper[1]) // int(secondOper[1])
+                self.stackValue.append(("int", res))
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+
+    def LTS(self, operand):
+        self.actualIdx += 1
+        if len(self.stackValue) > 1:
+            secondOper = self.stackValue.pop()
+            firstOper = self.stackValue.pop() 
+            if firstOper[0] == secondOper[0] and firstOper[0] != "nil":
+                res = firstOper[1] < secondOper[1]
+                self.stackValue.append(("bool", res))
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+
+    def GTS(self, operand):
+        self.actualIdx += 1
+        if len(self.stackValue) > 1:
+            secondOper = self.stackValue.pop()
+            firstOper = self.stackValue.pop() 
+            if firstOper[0] == secondOper[0] and firstOper[0] != "nil":
+                res = firstOper[1] > secondOper[1]
+                self.stackValue.append(("bool", res))
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+
+    def EQS(self, operand):
+        self.actualIdx += 1
+        if len(self.stackValue) > 1:
+            secondOper = self.stackValue.pop()
+            firstOper = self.stackValue.pop() 
+            if firstOper[0] == secondOper[0]:
+                res = firstOper[1] == secondOper[1]
+                self.stackValue.append(("bool", res))
+            elif firstOper[0] == "nil" and secondOper[0] != "nil":
+                self.stackValue.append(("bool", False))
+            elif firstOper[0] != "nil" and secondOper[0] == "nil":
+                self.stackValue.append(("bool", False))
+            elif firstOper[0] == "nil" and secondOper[0] == "nil":
+                self.stackValue.append(("bool", True))
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+    
+    def ANDS(self, operand):
+        self.actualIdx += 1
+        if len(self.stackValue) > 1:
+            secondOper = self.stackValue.pop()
+            firstOper = self.stackValue.pop() 
+            if firstOper[0] == secondOper[0] and firstOper[0] == "bool":
+                if firstOper[1] == "true":
+                    fir = True
+                else:
+                    fir = False
+                
+                if secondOper[1] == "true":
+                    sec = True
+                else:
+                    sec = False
+                
+                res = sec and fir
+                self.stackValue.append(("bool", res))
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+
+    def ORS(self, operand):
+        self.actualIdx += 1
+        if len(self.stackValue) > 1:
+            secondOper = self.stackValue.pop()
+            firstOper = self.stackValue.pop() 
+            if firstOper[0] == secondOper[0] and firstOper[0] == "bool":
+                if firstOper[1] == "true":
+                    fir = True
+                else:
+                    fir = False
+                
+                if secondOper[1] == "true":
+                    sec = True
+                else:
+                    sec = False
+                
+                res = sec or fir
+                self.stackValue.append(("bool", res))
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+
+    def NOTS(self, operand):
+        self.actualIdx += 1
+        if len(self.stackValue) > 0:
+            firstOper = self.stackValue.pop() 
+            if firstOper[0] == "bool":
+                if firstOper[1] == "true":
+                    fir = True
+                else:
+                    fir = False
+                
+                res = not(fir)
+                self.stackValue.append(("bool", res))
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+
+    def INT2CHARS(self, operand):
+        self.actualIdx += 1
+        if len(self.stackValue) > 0:
+            firstOper = self.stackValue.pop() 
+            if firstOper[0] == "int":
+                try:
+                    self.stackValue.append(("string", chr(int(firstOper[1]))))
+                except:
+                    sys.exit(Errors.stringError())
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+
+    def STRI2INTS(self, operand):
+        self.actualIdx += 1
+        if len(self.stackValue) > 1:
+            firstOper = self.stackValue.pop()
+            secondOper = self.stackValue.pop()
+            if firstOper[0] == "int" and secondOper[0] == "string":
+                fir = int(firstOper[1])
+                if fir < 0 or fir >= len(secondOper[1]):
+                    sys.exit(Errors.stringError())
+
+                res = ord(secondOper[1][fir])
+                self.stackValue.append(("int", res))
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+
+    def JUMPIFEQS(self, operand):
+        self.actualIdx += 1
+        label1 = operand[0][2]
+
+        if len(self.stackValue) > 1:
+            firstOper = self.stackValue.pop()
+            secondOper = self.stackValue.pop()
+            if firstOper[0] == secondOper[0]:
+                if (firstOper[1] == secondOper[1]):
+                    idx = label.labelIdx(self.labelList, label1)
+                    if idx == -1:
+                        sys.exit(Errors.semError())
+                    self.actualIdx = idx
+            elif firstOper[0] == "nil" or secondOper[0] == "nil":
+                pass
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+
+    def JUMPIFNEQS(self, operand):
+        self.actualIdx += 1
+        label1 = operand[0][2]
+        idx = label.labelIdx(self.labelList, label1)
+        if idx == -1:
+            sys.exit(Errors.semError())
+
+        if len(self.stackValue) > 1:
+            firstOper = self.stackValue.pop()
+            secondOper = self.stackValue.pop()
+            if firstOper[0] == secondOper[0]:
+                if (firstOper[1] != secondOper[1]):
+                    self.actualIdx = idx
+            elif firstOper[0] == "nil" or secondOper[0] == "nil":
+                self.actualIdx = idx
+            else:
+                sys.exit(Errors.invalidOperands())
+        else:
+            sys.exit(Errors.invalidValue())
+
 
 #interpret
 def interpret(instrList, inputFile):
@@ -1109,7 +1346,23 @@ def parse(instruction):
         "BREAK": [],
         "INT2FLOAT": ["var", "symb"],
         "FLOAT2INT": ["var", "symb"],
-        "DIV": ["var", "symb", "symb"]
+        "DIV": ["var", "symb", "symb"],
+        "CLEARS": [],
+        "ADDS": [],
+        "SUBS": [],
+        "CLEARS": [],
+        "IDIVS": [],
+        "MULS": [],
+        "LTS": [],
+        "GTS": [],
+        "EQS": [],
+        "ANDS": [],
+        "ORS": [],
+        "NOTS": [],
+        "INT2CHARS": [],
+        "STRI2INTS": [],
+        "JUMPIFEQS": ["label"],
+        "JUMPIFNEQS": ["label"]
     }
 
     #If instruction is exist
