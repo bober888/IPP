@@ -119,7 +119,7 @@ class HTMLGen {
         <td style=\"border: 1pt solid #000001; padding: 0.07in; height: 52px; width: 177.906px;\" bgcolor=\"#ffffff\">";
         
         if ($output) { 
-            $this->HTMLBody .= "<h1 class=\"western\" style=\"font-size: 20px; margin-top: 0in; background: #ffffff; page-break-inside: auto; widows: 0; orphans: 0; page-break-after: auto;\" align=\"CENTER\"><a name=\"_vpl2p4qqnh69\"></a> <span style=\"color: #cc0000;\">✘</span></h1>
+            $this->HTMLBody .= "<h1 class=\"western\" style=\"font-size: 20px; margin-top: 0in; background: #ffffff; page-break-inside: auto; widows: 0; orphans: 0; page-break-after: auto;\" align=\"CENTER\"><a name=\"_vpl2p4qqnh69\"></a> <span style=\"color: #cc0000;\">NOT OK</span></h1>
             </td>
             </tr>";
         } else { 
@@ -145,7 +145,7 @@ class HTMLGen {
         <td style=\"border: 1pt solid #000001; padding: 0.07in; height: 52px; width: 177.906px;\" bgcolor=\"#ffffff\">";
 
         if ($output) {
-            $this->HTMLBody .= "<p style=\"widows: 0; orphans: 0; font-size: 23px;\" align=\"CENTER\"><span style=\"color: #6aa84f;\"><span style=\"background: #ffffff;\">✔</span></span></p>
+            $this->HTMLBody .= "<p style=\"widows: 0; orphans: 0; font-size: 23px;\" align=\"CENTER\"><span style=\"color: #6aa84f;\"><span style=\"background: #ffffff;\">OK</span></span></p>
             </td>
             </tr>";
         } else {
@@ -294,6 +294,8 @@ function test() {
     global $parsefile;
     global $intfile;
     global $directory;
+    global $jexamxml;
+    global $jexamcfg;
 
     //Checks if directory is exists, generates array $files with all files in directory
     if (!realpath($directory)) {
@@ -380,7 +382,7 @@ function test() {
 
 
                 } elseif($retCode == 0) {   //compare outputs with jexam script
-                    exec("java -jar " . $jexamxml . " temp.out1 " . $outFile, $result, $retDiff);
+                    exec("java -jar " . $jexamxml . " temp.out1 " . $outFile . " delta.xml " . $jexamcfg, $result, $retDiff);
 
                     if ($retDiff == 0) {
                         $passed++;
@@ -401,6 +403,7 @@ function test() {
 
             if ($parseOnly) {
                 unlink("temp.out1");
+                unlink("delta.xml");
             } elseif ($intOnly) {
                 unlink("temp.out2");
             } else {
