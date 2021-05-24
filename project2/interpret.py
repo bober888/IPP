@@ -163,6 +163,7 @@ class program:
             self.inputFile = open(filename)
         except:
             sys.exit(Errors.notPossibleOpenInputFile())
+            
     #Function read instructions and calls theirs functions
     def readInstructions(self, instrList):
         countInstr = len(instrList)
@@ -1433,7 +1434,12 @@ def argumentParse():
     inputFile = False
     for argument in arguments:
         if (argumentsLen < 2 and "--help" in arguments):
-            print("Usage: python3.8 interpret.py --input=file --source=file")
+            print("Script reads XML representation of IPPcode21 and input file to interpret and generate output.")
+            print("--help - instruction how to use the script(cannot use this parametr with any other).")
+            print("--input=file - file with input for code intepretating.")
+            print("--source=file - file with XML representation IPPcode21.")
+            print("One of this paramets(--source=file, --input=file) must be always sets.")
+            print("Usage: python3.8 interpret.py [--input=file] [--source=file]")
             sys.exit(0)
         elif (re.match(r"^--source=", argument)):
             sourceFile = argument.split("=")[1]

@@ -10,9 +10,18 @@ Date: 06.04.2021
 ini_set("display_errors", "stderr");
 
 //Help message(--help)
-const helpText = "Script for automatic testing for aplication interpret.py, parse.php " .
-                 "Returns HTML code for generating results of testing\n" . 
-                 "Usage: php test.php [OPTINOS]\n";
+const helpText = "Script for automatic testing aplications interpret.py and parse.php " .
+                 "Returns HTML code for generating page with results of testing.\n" . 
+                 "Usage: php test.php [OPTINOS]\n" . 
+                 "Options:\n--help - print help message with script's description.\n" . 
+                 "--directory=path - will be looking for tests in this directory(default directory = cwd()).\n" .
+                 "--recursive - will be looking for tests recursivly in directory.\n" . 
+                 "--parse-script=file - file with parse.php, which will be tested.\n" . 
+                 "--int-script=file - file with interpret.py, which will be tested.\n" . 
+                 "--parse-only - will test only parse.php(cannot use this option in combination with --int-only or --int-script=file).\n" . 
+                 "--int-only - will test only interpret.py(cannot use this option in combination with --parse-only or --parse-script=file).\n" . 
+                 "--jexamxml=file - file with JAR program A7Soft JexamXML. Will be used for comparing XML outputs parse.php and expected tests.\n" . 
+                 "--jexamcfg=file - file with A7SoftJexamXML configuration.\n";
 
 //Global varnings
 $directory = getcwd();
